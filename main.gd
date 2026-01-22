@@ -352,10 +352,13 @@ func _check_both_ready():
 	if local_deck_data and remote_deck_data and not both_ready:
 		both_ready = true
 		print("✅ Entrambi pronti — avvio partita")
+		print("STARTO PER HOST")
+		_start_game()
+		print("STARTO PER CLIENT TRAMITE RPC")
 		rpc("_rpc_start_game")
 
 
-@rpc("any_peer", "call_local")
+@rpc("any_peer")
 func _rpc_start_game():
 	print("🚀 start_game su peer:", multiplayer.get_unique_id())
 	_start_game()

@@ -26,12 +26,6 @@ var local_ready := false
 var remote_ready := false
 
 func _ready():
-	if not multiplayer.is_server():
-		await get_tree().process_frame
-		await get_tree().process_frame
-		print("🚀 CLIENT → invio ping")
-		RpcTest.rpc_id(1, "ping", "CIAO HOST, TEST RPC")
-
 	# --- Connessioni multiplayer ---
 	MultiplayerManager.connected.connect(_on_connected)
 	MultiplayerManager.failed.connect(_on_failed)
@@ -293,16 +287,8 @@ func _on_join_pressed():
 	MultiplayerManager.join(ip)
 
 func _on_connected():
-	print("✅ _on_connected su:", multiplayer.get_unique_id())
+	print("✅ _on_connected su:", multiplayer.get_unique_id(), " selected_deck:", selected_deck != null)
 	local_deck_data = selected_deck
-
-	if not multiplayer.is_server():
-		print("🚀 CLIENT → invio ping RPC")
-		await get_tree().process_frame
-		await get_tree().process_frame
-		RpcTest.rpc_id(1, "ping", "CIAO HOST, TEST RPC")
-
-
 
 	# ❌ NON inviare nulla qui
 
@@ -360,12 +346,6 @@ func _send_deck_to_peer(deck_data: DeckData, target_peer_id: int):
 	print("📤 Invio deck a peer che ha ID pari a:", target_peer_id)
 	rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
 
-@rpc("any_peer", "call_local")
-func _rpc_ping_host_test(message: String):
-	var sender := multiplayer.get_remote_sender_id()
-	print("🧪 RPC TEST RICEVUTA su peer:", multiplayer.get_unique_id())
-	print("   📩 sender:", sender)
-	print("   💬 message:", message)
 
 
 @rpc("any_peer")
@@ -386,29 +366,13 @@ func _receive_deck_data(deck_dict: Dictionary):
 		#print("✅ Entrambi i deck ricevuti — avvio scena.")
 		#_start_game()
 func _check_both_ready():
-	print("🧪 _check_both_ready chiamata su peer:", multiplayer.get_unique_id())
-	print("    is_server:", multiplayer.is_server())
-	print("    local_deck_data:", local_deck_data != null)
-	print("    remote_deck_data:", remote_deck_data != null)
-	print("    both_ready:", both_ready)
-
 	if not multiplayer.is_server():
-		print("⛔ Non sono server → esco da _check_both_ready")
 		return
-
-	if local_deck_data == null:
-		print("⏳ Attendo local_deck_data...")
-	if remote_deck_data == null:
-		print("⏳ Attendo remote_deck_data...")
 
 	if local_deck_data and remote_deck_data and not both_ready:
 		both_ready = true
-		print("✅ ENTRAMBI I DECK PRESENTI SULL'HOST!")
-		print("   ➜ local_deck:", local_deck_data.deck_name)
-		print("   ➜ remote_deck:", remote_deck_data.deck_name)
-		print("🚀 Avvio partita tramite RPC")
+		print("✅ Entrambi pronti — avvio partita")
 		rpc("_rpc_start_game")
-
 
 
 @rpc("any_peer", "call_local")

@@ -366,13 +366,29 @@ func _receive_deck_data(deck_dict: Dictionary):
 		#print("✅ Entrambi i deck ricevuti — avvio scena.")
 		#_start_game()
 func _check_both_ready():
+	print("🧪 _check_both_ready chiamata su peer:", multiplayer.get_unique_id())
+	print("    is_server:", multiplayer.is_server())
+	print("    local_deck_data:", local_deck_data != null)
+	print("    remote_deck_data:", remote_deck_data != null)
+	print("    both_ready:", both_ready)
+
 	if not multiplayer.is_server():
+		print("⛔ Non sono server → esco da _check_both_ready")
 		return
+
+	if local_deck_data == null:
+		print("⏳ Attendo local_deck_data...")
+	if remote_deck_data == null:
+		print("⏳ Attendo remote_deck_data...")
 
 	if local_deck_data and remote_deck_data and not both_ready:
 		both_ready = true
-		print("✅ Entrambi pronti — avvio partita")
+		print("✅ ENTRAMBI I DECK PRESENTI SULL'HOST!")
+		print("   ➜ local_deck:", local_deck_data.deck_name)
+		print("   ➜ remote_deck:", remote_deck_data.deck_name)
+		print("🚀 Avvio partita tramite RPC")
 		rpc("_rpc_start_game")
+
 
 
 @rpc("any_peer", "call_local")

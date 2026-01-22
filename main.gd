@@ -297,63 +297,59 @@ func _on_join_pressed():
 	#status_label.visible = true  #non servono per ora perche' il join e' istant
 	#status_label.text = "Connessione a %s..." % ip
 
-func _on_peer_connected(peer_id):
-	print("🎉 Peer connesso:", peer_id)
-	local_deck_data = selected_deck
-	await get_tree().create_timer(0.5).timeout
-	# Host manda SEMPRE il deck al client
-	rpc_id(peer_id, "rpc_send_deck", local_deck_data.to_dict())
-	
 func _on_connected():
 	print("🎉 Client connesso")
 	local_deck_data = selected_deck
-	await get_tree().create_timer(0.5).timeout
-	# Aspetta che l'host esista davvero
-	await multiplayer.peer_connected
-	rpc_id(1, "rpc_send_deck", local_deck_data.to_dict())
+	# ❌ NON inviare nulla qui
+
+
+func _on_peer_connected(peer_id: int):
+	# ❌JOIN ignora se stesso
+	if peer_id == multiplayer.get_unique_id():
+		return
+
+
+	if multiplayer.is_server():
+		print("🎉 JOIN remoto connesso:", peer_id)
+		# 1) manda deck host
+		print("➡️ HOST manda il SUO deck al peer", peer_id)
+		_send_deck_to_peer(local_deck_data, peer_id)
+
+		# 2) richiede deck al client
+		print("➡️ HOST richiede il deck al peer", peer_id)
+		rpc_id(peer_id, "_rpc_request_deck")
+
+
 
 @rpc("any_peer")
-func rpc_send_deck(deck_dict: Dictionary):
-	print("📥 RPC deck ricevuto su peer", multiplayer.get_unique_id())
-	remote_deck_data = DeckData.from_dict(deck_dict)
-	_check_both_ready()
+func _rpc_request_deck():
+	var sender := multiplayer.get_remote_sender_id()
+	print("📨 Sono Client Richiesta ARRIVATA DA peer:", sender)
+	_send_deck_to_peer(local_deck_data)
 
 
-#func _on_connected():
-	#print("🎉 Connesso! Attesa peer...")
-	#local_deck_data = selected_deck
-#
-	#if not multiplayer.is_server():
-		#await get_tree().create_timer(1).timeout  # ⏳ piccolo delay
-		#_send_deck_to_peer(local_deck_data)
-#
-#func _on_peer_connected(peer_id):
-	#print("🎉 Peer connesso all'host con ID:", peer_id)
-	#local_deck_data = selected_deck
-#
-	#if multiplayer.is_server():
-		#await get_tree().create_timer(1).timeout  # ⏳ piccolo delay per sicurezza
-		#_send_deck_to_peer(local_deck_data, peer_id)
-#
-## ==============================================================
-## 📤📥 Invio e ricezione deck
-## ==============================================================
-#
-#@rpc("any_peer")
-#func _send_deck_to_peer(deck_data: DeckData, target_peer_id := 0):
-	#var deck_dict = deck_data.to_dict()  # 🔁 Serializza prima
-	#if multiplayer.is_server():
-		#if target_peer_id != 0:
-			#print("📤 Host invia deck a peer", target_peer_id, ":", deck_dict.deck_name)
-			#rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
-	#else:
-		#print("📤 Client invia deck all'host:", deck_dict.deck_name)
-		#rpc_id(1, "_receive_deck_data", deck_dict) # 1 = host
+# ==============================================================
+# 📤📥 Invio e ricezione deck
+# ==============================================================
+
+@rpc("any_peer")
+func _send_deck_to_peer(deck_data: DeckData, target_peer_id := 0):
+	var deck_dict = deck_data.to_dict()
+
+	if multiplayer.is_server():
+		print("📤 HOST → invio deck a peer:", target_peer_id)
+		rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
+	else:
+		print("📤 CLIENT → invio deck all'HOST (1)")
+		rpc_id(1, "_receive_deck_data", deck_dict)
+
 
 
 @rpc("any_peer")
 func _receive_deck_data(deck_dict: Dictionary):
-	print("📥 Ricevuto deck:", deck_dict.get("deck_name", "???"))
+	var sender := multiplayer.get_remote_sender_id()
+	print("📥 Deck ARRIVATO DA peer:", sender,
+		  " | nome deck:", deck_dict.get("deck_name", "???"))
 	var deck_data = DeckData.from_dict(deck_dict)
 	remote_deck_data = DeckData.from_dict(deck_dict)
 	await get_tree().create_timer(1).timeout 

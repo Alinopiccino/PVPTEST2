@@ -26,6 +26,12 @@ var local_ready := false
 var remote_ready := false
 
 func _ready():
+	if not multiplayer.is_server():
+		await get_tree().process_frame
+		await get_tree().process_frame
+		print("🚀 CLIENT → invio ping")
+		RpcTest.rpc_id(1, "ping", "CIAO HOST, TEST RPC")
+
 	# --- Connessioni multiplayer ---
 	MultiplayerManager.connected.connect(_on_connected)
 	MultiplayerManager.failed.connect(_on_failed)
@@ -287,14 +293,15 @@ func _on_join_pressed():
 	MultiplayerManager.join(ip)
 
 func _on_connected():
-	print("✅ _on_connected su:", multiplayer.get_unique_id(), " selected_deck:", selected_deck != null)
+	print("✅ _on_connected su:", multiplayer.get_unique_id())
 	local_deck_data = selected_deck
 
 	if not multiplayer.is_server():
-		print("🧪 CLIENT → invio RPC test all'host")
+		print("🚀 CLIENT → invio ping RPC")
 		await get_tree().process_frame
 		await get_tree().process_frame
-		rpc_id(1, "_rpc_ping_host_test", "CIAO HOST, ORA DOVRESTI VEDERMI")
+		RpcTest.rpc_id(1, "ping", "CIAO HOST, TEST RPC")
+
 
 
 	# ❌ NON inviare nulla qui

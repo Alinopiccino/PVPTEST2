@@ -19,6 +19,7 @@ config/icon="res://Assets/icon.svg"
 
 MultiplayerManager="*res://Scripts/multiplayer_manager.gd"
 CardSpawner="res://Scripts/card_spawner.gd"
+RpcTest="*res://rpc_test.gd"
 
 [display]
 

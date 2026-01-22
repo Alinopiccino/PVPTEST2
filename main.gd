@@ -290,6 +290,13 @@ func _on_connected():
 	print("✅ _on_connected su:", multiplayer.get_unique_id(), " selected_deck:", selected_deck != null)
 	local_deck_data = selected_deck
 
+	if not multiplayer.is_server():
+		print("🧪 CLIENT → invio RPC test all'host")
+		await get_tree().process_frame
+		await get_tree().process_frame
+		rpc_id(1, "_rpc_ping_host_test", "CIAO HOST, ORA DOVRESTI VEDERMI")
+
+
 	# ❌ NON inviare nulla qui
 
 
@@ -320,8 +327,7 @@ func _rpc_request_deck():
 		await get_tree().process_frame  # ✅ aspetta finché è pronto
 
 	_send_deck_to_peer(local_deck_data, sender)
-	print("🧪 CLIENT → invio RPC test all'host")
-	rpc_id(1, "_rpc_ping_host_test", "CIAO HOST, MI RICEVI?")
+
 
 
 # ==============================================================

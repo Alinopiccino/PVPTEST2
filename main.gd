@@ -301,86 +301,45 @@ func _on_connected():
 	print("🎉 Connesso! Attesa peer...")
 	local_deck_data = selected_deck
 
-	#if not multiplayer.is_server():
-		#await get_tree().create_timer(0.2).timeout  # ⏳ piccolo delay
-		#_send_deck_to_peer(local_deck_data)
+	if not multiplayer.is_server():
+		await get_tree().create_timer(1).timeout  # ⏳ piccolo delay
+		_send_deck_to_peer(local_deck_data)
 
-#func _on_peer_connected(peer_id):
-	#print("🎉 Peer connesso all'host con ID:", peer_id)
-	#local_deck_data = selected_deck
-#
-	#if multiplayer.is_server():
-		#await get_tree().create_timer(0.2).timeout  # ⏳ piccolo delay per sicurezza
-		#print("📤 Host invia deck al peer:", peer_id, local_deck_data.deck_name)
-		#_send_deck_to_peer(local_deck_data, peer_id)
 func _on_peer_connected(peer_id):
-	print("🎉 Peer connesso:", peer_id)
+	print("🎉 Peer connesso all'host con ID:", peer_id)
 	local_deck_data = selected_deck
 
-	# 1️⃣ HOST → CLIENT : invia il deck dell'host
-	await get_tree().create_timer(0.2).timeout
-	var deck_dict = local_deck_data.to_dict()
-	print("📤 Host invia deck al client:", deck_dict.deck_name)
-	rpc_id(peer_id, "_receive_host_deck", deck_dict)
+	if multiplayer.is_server():
+		await get_tree().create_timer(1).timeout  # ⏳ piccolo delay per sicurezza
+		print("📤 Host invia deck al peer:", peer_id, local_deck_data.deck_name)
+		_send_deck_to_peer(local_deck_data, peer_id)
 
-	# 2️⃣ HOST → CLIENT : chiede il deck del client
-	await get_tree().create_timer(0.2).timeout
-	print("📨 Host richiede deck al client")
-	rpc_id(peer_id, "_rpc_request_deck")
-
-
-
-@rpc("authority")
-func _rpc_request_deck():
-	print("📨 Host richiede deck al client")
-	_send_deck_to_host()
-	
-func _send_deck_to_host():
-	var deck_dict = local_deck_data.to_dict()
-	print("📤 Client invia deck all'host:", deck_dict.deck_name)
-	rpc_id(1, "_receive_client_deck", deck_dict)
 # ==============================================================
 # 📤📥 Invio e ricezione deck
 # ==============================================================
 
-#@rpc("any_peer")
-#func _send_deck_to_peer(deck_data: DeckData, target_peer_id := 0):
-	#var deck_dict = deck_data.to_dict()  # 🔁 Serializza prima
-	#if multiplayer.is_server():
-		#if target_peer_id != 0:
-			#print("📤 Host invia deck a peer", target_peer_id, ":", deck_dict.deck_name)
-			#rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
-	#else:
-		#print("📤 Client invia deck all'host:", deck_dict.deck_name)
-		#rpc_id(1, "_receive_deck_data", deck_dict) # 1 = host
+@rpc("any_peer")
+func _send_deck_to_peer(deck_data: DeckData, target_peer_id := 0):
+	var deck_dict = deck_data.to_dict()  # 🔁 Serializza prima
+	if multiplayer.is_server():
+		if target_peer_id != 0:
+			print("📤 Host invia deck a peer", target_peer_id, ":", deck_dict.deck_name)
+			rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
+	else:
+		print("📤 Client invia deck all'host:", deck_dict.deck_name)
+		rpc_id(1, "_receive_deck_data", deck_dict) # 1 = host
 
-#
-#@rpc("any_peer")
-#func _receive_deck_data(deck_dict: Dictionary):
-	#print("📥 Ricevuto deck:", deck_dict.get("deck_name", "???"))
-	#var deck_data = DeckData.from_dict(deck_dict)
-	#remote_deck_data = DeckData.from_dict(deck_dict)
-	#await get_tree().create_timer(1).timeout 
-	#_check_both_ready()
-	
-#@rpc("authority")
-#func _receive_deck_data(deck_dict: Dictionary):
-	#print("📥 Host riceve deck client:", deck_dict.deck_name)
-	#remote_deck_data = DeckData.from_dict(deck_dict)
-	#_check_both_ready()
 
 @rpc("any_peer")
-func _receive_host_deck(deck_dict: Dictionary):
-	if multiplayer.is_server():
-		return
-	print("📥 Client riceve deck host:", deck_dict.deck_name)
+func _receive_deck_data(deck_dict: Dictionary):
+	print("📥 Ricevuto deck:", deck_dict.get("deck_name", "???"))
+	var deck_data = DeckData.from_dict(deck_dict)
 	remote_deck_data = DeckData.from_dict(deck_dict)
-	
-@rpc("authority")
-func _receive_client_deck(deck_dict: Dictionary):
-	print("📥 Host riceve deck client:", deck_dict.deck_name)
-	remote_deck_data = DeckData.from_dict(deck_dict)
+	await get_tree().create_timer(1).timeout 
 	_check_both_ready()
+	
+
+
 #func _check_both_ready():
 	#if local_deck_data and remote_deck_data and not both_ready:
 		#both_ready = true
@@ -393,13 +352,10 @@ func _check_both_ready():
 	if local_deck_data and remote_deck_data and not both_ready:
 		both_ready = true
 		print("✅ Entrambi pronti — avvio partita")
-		print("STARTO PER HOST")
-		_start_game()
-		print("STARTO PER CLIENT TRAMITE RPC")
 		rpc("_rpc_start_game")
 
 
-@rpc("any_peer")
+@rpc("any_peer", "call_local")
 func _rpc_start_game():
 	print("🚀 start_game su peer:", multiplayer.get_unique_id())
 	_start_game()

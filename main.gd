@@ -205,19 +205,9 @@ func _on_host_pressed():
 	if not selected_deck:
 		print("⚠️ Seleziona prima un deck!")
 		return
-
-	# Disattiva i bottoni di host/join (resta solo la lobby visibile)
+	local_deck_data = selected_deck  # ✅ QUI
 	disable_buttons()
-
-	## Aggiungi il bottone con il nome del giocatore host
-	#_add_player_to_lobby(current_username, true)
-
-	# Avvia l'host ma non cambia scena
-	
 	MultiplayerManager.host()
-		# Mostra messaggio host
-		
-
 	update_ip_label()
 	copy_ip_button.visible = true
 
@@ -291,15 +281,15 @@ func _on_join_pressed():
 	if not selected_deck:
 		print("⚠️ Seleziona prima un deck!")
 		return
+
+	local_deck_data = selected_deck  # ✅ QUI
 	disable_buttons()
-	
 	MultiplayerManager.join(ip)
-	#status_label.visible = true  #non servono per ora perche' il join e' istant
-	#status_label.text = "Connessione a %s..." % ip
 
 func _on_connected():
-	print("🎉 Client connesso")
+	print("✅ _on_connected su:", multiplayer.get_unique_id(), " selected_deck:", selected_deck != null)
 	local_deck_data = selected_deck
+
 	# ❌ NON inviare nulla qui
 
 
@@ -324,24 +314,37 @@ func _on_peer_connected(peer_id: int):
 @rpc("any_peer")
 func _rpc_request_deck():
 	var sender := multiplayer.get_remote_sender_id()
-	print("📨 Sono Client Richiesta ARRIVATA DA peer:", sender)
-	_send_deck_to_peer(local_deck_data)
+	print("📨 Richiesta deck da:", sender)
+
+	while local_deck_data == null:
+		await get_tree().process_frame  # ✅ aspetta finché è pronto
+
+	_send_deck_to_peer(local_deck_data, sender)
+
 
 
 # ==============================================================
 # 📤📥 Invio e ricezione deck
 # ==============================================================
 
-@rpc("any_peer")
-func _send_deck_to_peer(deck_data: DeckData, target_peer_id := 0):
-	var deck_dict = deck_data.to_dict()
+#@rpc("any_peer")
+#func _send_deck_to_peer(deck_data: DeckData, target_peer_id := 0):
+	#var deck_dict = deck_data.to_dict()
+#
+	#if multiplayer.is_server():
+		#print("📤 HOST → invio deck a peer:", target_peer_id)
+		#rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
+	#else:
+		#print("📤 CLIENT → invio deck all'HOST (1)")
+		#rpc_id(1, "_receive_deck_data", deck_dict)
+func _send_deck_to_peer(deck_data: DeckData, target_peer_id: int):
+	if deck_data == null:
+		push_warning("❌ _send_deck_to_peer: deck_data è NULL, invio annullato")
+		return
 
-	if multiplayer.is_server():
-		print("📤 HOST → invio deck a peer:", target_peer_id)
-		rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
-	else:
-		print("📤 CLIENT → invio deck all'HOST (1)")
-		rpc_id(1, "_receive_deck_data", deck_dict)
+	var deck_dict = deck_data.to_dict()
+	print("📤 Invio deck a peer che ha ID pari a:", target_peer_id)
+	rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
 
 
 
@@ -374,7 +377,6 @@ func _check_both_ready():
 
 @rpc("any_peer", "call_local")
 func _rpc_start_game():
-	print("🚀 start_game su peer:", multiplayer.get_unique_id())
 	_start_game()
 
 # ==============================================================

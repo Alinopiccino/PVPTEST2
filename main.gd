@@ -320,7 +320,8 @@ func _rpc_request_deck():
 		await get_tree().process_frame  # ✅ aspetta finché è pronto
 
 	_send_deck_to_peer(local_deck_data, sender)
-
+	print("🧪 CLIENT → invio RPC test all'host")
+	rpc_id(1, "_rpc_ping_host_test", "CIAO HOST, MI RICEVI?")
 
 
 # ==============================================================
@@ -346,6 +347,12 @@ func _send_deck_to_peer(deck_data: DeckData, target_peer_id: int):
 	print("📤 Invio deck a peer che ha ID pari a:", target_peer_id)
 	rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
 
+@rpc("any_peer", "call_local")
+func _rpc_ping_host_test(message: String):
+	var sender := multiplayer.get_remote_sender_id()
+	print("🧪 RPC TEST RICEVUTA su peer:", multiplayer.get_unique_id())
+	print("   📩 sender:", sender)
+	print("   💬 message:", message)
 
 
 @rpc("any_peer")

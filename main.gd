@@ -13,6 +13,7 @@ var deck_buttons_container: VBoxContainer
 var lobby_list_background: ColorRect
 var lobby_list: VBoxContainer
 var deck_list_background: ColorRect
+var ping_seq: int = 0
 
 # Multiplayer info
 var local_deck_data: DeckData = null
@@ -26,6 +27,10 @@ var local_ready := false
 var remote_ready := false
 
 func _ready():
+	print("📍 PATH:", get_path(),
+	" | scene:", get_tree().current_scene,
+	" | peer:", multiplayer.get_unique_id(),
+	" | is_server:", multiplayer.is_server())
 	# --- Connessioni multiplayer ---
 	MultiplayerManager.connected.connect(_on_connected)
 	MultiplayerManager.failed.connect(_on_failed)
@@ -298,9 +303,22 @@ func _on_peer_connected(peer_id: int):
 	if peer_id == multiplayer.get_unique_id():
 		return
 
+	# ✅ CLIENT: quando il server (1) è connesso, manda ping
+	if not multiplayer.is_server() and peer_id == MultiplayerPeer.TARGET_PEER_SERVER:
+		print("🔌 CLIENT vede SERVER connesso (1) -> mando ping test")
+		_send_ping_to_server("[auto on peer_connected]")
+		# opzionale: manda un secondo ping dopo un attimo
+		await get_tree().create_timer(0.5).timeout
+		_send_ping_to_server("[auto 2nd ping]")
+		return
 
+	# ✅ HOST: codice già tuo
 	if multiplayer.is_server():
 		print("🎉 JOIN remoto connesso:", peer_id)
+
+		# (opzionale) ping host->client per testare anche l'altra direzione
+		_send_ping_to_peer(peer_id, "[auto host->client]")
+
 		# 1) manda deck host
 		print("➡️ HOST manda il SUO deck al peer", peer_id)
 		_send_deck_to_peer(local_deck_data, peer_id)
@@ -308,6 +326,7 @@ func _on_peer_connected(peer_id: int):
 		# 2) richiede deck al client
 		print("➡️ HOST richiede il deck al peer", peer_id)
 		rpc_id(peer_id, "_rpc_request_deck")
+
 
 
 
@@ -344,6 +363,7 @@ func _send_deck_to_peer(deck_data: DeckData, target_peer_id: int):
 
 	var deck_dict = deck_data.to_dict()
 	print("📤 Invio deck a peer che ha ID pari a:", target_peer_id)
+	print("➡️ target path:", get_path(), " name:", name)
 	rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
 
 
@@ -444,4 +464,32 @@ func _on_copy_ip_pressed():
 	elif lan_ip != "":
 		DisplayServer.clipboard_set(lan_ip)
 	
+	
+func _send_ping_to_server(tag: String = ""):
+	ping_seq += 1
+	print("📤 CLIENT invia PING #", ping_seq, " verso SERVER (1) ", tag)
+	rpc_id(MultiplayerPeer.TARGET_PEER_SERVER, "_rpc_ping", ping_seq, tag)
+
+func _send_ping_to_peer(peer_id: int, tag: String = ""):
+	ping_seq += 1
+	print("📤 HOST invia PING #", ping_seq, " verso PEER ", peer_id, " ", tag)
+	rpc_id(peer_id, "_rpc_ping", ping_seq, tag)
+
+@rpc("any_peer")
+func _rpc_ping(seq: int, tag: String):
+	var sender := multiplayer.get_remote_sender_id()
+	print("📩 PING ricevuto su:", multiplayer.get_unique_id(),
+		" da:", sender, " | seq:", seq, " | tag:", tag)
+
+	# Rispondo con PONG al mittente
+	rpc_id(sender, "_rpc_pong", seq, "pong->" + str(sender))
+
+@rpc("any_peer")
+func _rpc_pong(seq: int, tag: String):
+	var sender := multiplayer.get_remote_sender_id()
+	print("✅ PONG ricevuto su:", multiplayer.get_unique_id(),
+		" da:", sender, " | seq:", seq, " | tag:", tag)
+
+
+
 	

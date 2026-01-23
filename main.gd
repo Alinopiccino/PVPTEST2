@@ -14,6 +14,8 @@ var lobby_list_background: ColorRect
 var lobby_list: VBoxContainer
 var deck_list_background: ColorRect
 var ping_seq: int = 0
+var handshake_done := false
+var peer_handshake_done := false
 
 # Multiplayer info
 var local_deck_data: DeckData = null
@@ -27,10 +29,7 @@ var local_ready := false
 var remote_ready := false
 
 func _ready():
-	print("📍 PATH:", get_path(),
-	" | scene:", get_tree().current_scene,
-	" | peer:", multiplayer.get_unique_id(),
-	" | is_server:", multiplayer.is_server())
+
 	# --- Connessioni multiplayer ---
 	MultiplayerManager.connected.connect(_on_connected)
 	MultiplayerManager.failed.connect(_on_failed)
@@ -293,6 +292,10 @@ func _on_join_pressed():
 
 func _on_connected():
 	print("✅ _on_connected su:", multiplayer.get_unique_id(), " selected_deck:", selected_deck != null)
+	print("📍 PATH:", get_path(),
+	" | scene:", get_tree().current_scene,
+	" | peer:", multiplayer.get_unique_id(),
+	" | is_server:", multiplayer.is_server())
 	local_deck_data = selected_deck
 
 	# ❌ NON inviare nulla qui
@@ -306,10 +309,7 @@ func _on_peer_connected(peer_id: int):
 	# ✅ CLIENT: quando il server (1) è connesso, manda ping
 	if not multiplayer.is_server() and peer_id == MultiplayerPeer.TARGET_PEER_SERVER:
 		print("🔌 CLIENT vede SERVER connesso (1) -> mando ping test")
-		_send_ping_to_server("[auto on peer_connected]")
-		# opzionale: manda un secondo ping dopo un attimo
-		await get_tree().create_timer(0.5).timeout
-		_send_ping_to_server("[auto 2nd ping]")
+		_send_ping_to_server("handshake")
 		return
 
 	# ✅ HOST: codice già tuo
@@ -323,9 +323,7 @@ func _on_peer_connected(peer_id: int):
 		print("➡️ HOST manda il SUO deck al peer", peer_id)
 		_send_deck_to_peer(local_deck_data, peer_id)
 
-		# 2) richiede deck al client
-		print("➡️ HOST richiede il deck al peer", peer_id)
-		rpc_id(peer_id, "_rpc_request_deck")
+
 
 
 
@@ -375,8 +373,9 @@ func _receive_deck_data(deck_dict: Dictionary):
 		  " | nome deck:", deck_dict.get("deck_name", "???"))
 	var deck_data = DeckData.from_dict(deck_dict)
 	remote_deck_data = DeckData.from_dict(deck_dict)
-	await get_tree().create_timer(1).timeout 
-	_check_both_ready()
+	if multiplayer.is_server():
+		await get_tree().create_timer(1).timeout 
+		_check_both_ready()
 	
 
 
@@ -386,8 +385,6 @@ func _receive_deck_data(deck_dict: Dictionary):
 		#print("✅ Entrambi i deck ricevuti — avvio scena.")
 		#_start_game()
 func _check_both_ready():
-	if not multiplayer.is_server():
-		return
 
 	if local_deck_data and remote_deck_data and not both_ready:
 		both_ready = true
@@ -481,8 +478,11 @@ func _rpc_ping(seq: int, tag: String):
 	print("📩 PING ricevuto su:", multiplayer.get_unique_id(),
 		" da:", sender, " | seq:", seq, " | tag:", tag)
 
-	# Rispondo con PONG al mittente
-	rpc_id(sender, "_rpc_pong", seq, "pong->" + str(sender))
+	if tag == "handshake":
+		# segna che il peer è vivo
+		peer_handshake_done = true
+
+	rpc_id(sender, "_rpc_pong", seq, tag)
 
 @rpc("any_peer")
 func _rpc_pong(seq: int, tag: String):
@@ -490,6 +490,14 @@ func _rpc_pong(seq: int, tag: String):
 	print("✅ PONG ricevuto su:", multiplayer.get_unique_id(),
 		" da:", sender, " | seq:", seq, " | tag:", tag)
 
+	if tag == "handshake":
+		handshake_done = true
+		_try_send_deck_after_handshake()
+
+func _try_send_deck_after_handshake():
+	if handshake_done and local_deck_data != null:
+		print("🤝 Handshake completato → invio deck al server")
+		_send_deck_to_peer(local_deck_data, MultiplayerPeer.TARGET_PEER_SERVER)
 
 
 	

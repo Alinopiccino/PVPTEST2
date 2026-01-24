@@ -488,7 +488,9 @@ func _rpc_ping(seq: int, tag: String):
 
 	if tag == "handshake":
 		peer_handshake_done = true
-		_try_start_game_after_handshake()
+		if multiplayer.is_server():
+			await get_tree().create_timer(1).timeout 
+			_try_start_game_after_handshake()
 
 	rpc_id(sender, "_rpc_pong", seq, tag)
 
@@ -500,7 +502,9 @@ func _rpc_pong(seq: int, tag: String):
 
 	if tag == "handshake":
 		handshake_done = true
-		_try_start_game_after_handshake()
+		if multiplayer.is_server():
+			await get_tree().create_timer(1).timeout 
+			_try_start_game_after_handshake()
 
 #func _try_send_deck_after_handshake():
 	#if handshake_done and local_deck_data != null:

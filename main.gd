@@ -369,6 +369,7 @@ func _send_deck_to_peer(deck_data: DeckData, target_peer_id: int):
 @rpc("any_peer")
 func _receive_deck_data(deck_dict: Dictionary):
 	var sender := multiplayer.get_remote_sender_id()
+	print("📦 DIMENSIONE DECK:", var_to_bytes(deck_dict).size())
 	print("📥 Deck ARRIVATO DA peer:", sender,
 		  " | nome deck:", deck_dict.get("deck_name", "???"))
 	var deck_data = DeckData.from_dict(deck_dict)
@@ -464,22 +465,41 @@ func _on_copy_ip_pressed():
 	
 func _send_ping_to_server(tag: String = ""):
 	ping_seq += 1
-	print("📤 CLIENT invia PING #", ping_seq, " verso SERVER (1) ", tag)
+	var payload := [ping_seq, tag]
+	var bytes := var_to_bytes(payload).size()
+
+	print("📤 CLIENT invia PING #", ping_seq,
+		" verso SERVER (1)",
+		" | tag:", tag,
+		" | size:", bytes, "bytes")
+
 	rpc_id(MultiplayerPeer.TARGET_PEER_SERVER, "_rpc_ping", ping_seq, tag)
 
 func _send_ping_to_peer(peer_id: int, tag: String = ""):
 	ping_seq += 1
-	print("📤 HOST invia PING #", ping_seq, " verso PEER ", peer_id, " ", tag)
+	var payload := [ping_seq, tag]
+	var bytes := var_to_bytes(payload).size()
+
+	print("📤 HOST invia PING #", ping_seq,
+		" verso PEER", peer_id,
+		" | tag:", tag,
+		" | size:", bytes, "bytes")
+
 	rpc_id(peer_id, "_rpc_ping", ping_seq, tag)
 
 @rpc("any_peer")
 func _rpc_ping(seq: int, tag: String):
 	var sender := multiplayer.get_remote_sender_id()
+	var payload := [seq, tag]
+	var bytes := var_to_bytes(payload).size()
+
 	print("📩 PING ricevuto su:", multiplayer.get_unique_id(),
-		" da:", sender, " | seq:", seq, " | tag:", tag)
+		" da:", sender,
+		" | seq:", seq,
+		" | tag:", tag,
+		" | size:", bytes, "bytes")
 
 	if tag == "handshake":
-		# segna che il peer è vivo
 		peer_handshake_done = true
 
 	rpc_id(sender, "_rpc_pong", seq, tag)
@@ -487,8 +507,14 @@ func _rpc_ping(seq: int, tag: String):
 @rpc("any_peer")
 func _rpc_pong(seq: int, tag: String):
 	var sender := multiplayer.get_remote_sender_id()
+	var payload := [seq, tag]
+	var bytes := var_to_bytes(payload).size()
+
 	print("✅ PONG ricevuto su:", multiplayer.get_unique_id(),
-		" da:", sender, " | seq:", seq, " | tag:", tag)
+		" da:", sender,
+		" | seq:", seq,
+		" | tag:", tag,
+		" | size:", bytes, "bytes")
 
 	if tag == "handshake":
 		handshake_done = true

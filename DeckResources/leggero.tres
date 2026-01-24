@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="DeckData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://Scripts/CardData.gd" id="1_qjqk2"]
+[ext_resource type="Resource" path="res://CardResources/FIRE SPELLS/Firebolt.tres" id="2_mxc28"]
+[ext_resource type="Script" path="res://Scripts/DeckData.gd" id="2_os22d"]
+
+[resource]
+script = ExtResource("2_os22d")
+deck_name = "leggero"
+cards = Array[ExtResource("1_qjqk2")]([ExtResource("2_mxc28")])
+is_valid = false
+mana_sort_state = "none"
+rank_sort_state = "none"
+mana_slot_1 = "Fire"
+mana_slot_2 = "Fire"
+mana_slot_3 = "Fire"
+mana_slot_4 = "Fire"
+mana_slot_5 = "Fire"

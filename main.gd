@@ -319,24 +319,24 @@ func _on_peer_connected(peer_id: int):
 		# (opzionale) ping host->client per testare anche l'altra direzione
 		_send_ping_to_peer(peer_id, "[auto host->client]")
 
-		# 1) manda deck host
-		print("➡️ HOST manda il SUO deck al peer", peer_id)
-		_send_deck_to_peer(local_deck_data, peer_id)
+		## 1) manda deck host
+		#print("➡️ HOST manda il SUO deck al peer", peer_id)
+		#_send_deck_to_peer(local_deck_data, peer_id)
 
 
 
 
 
 
-@rpc("any_peer")
-func _rpc_request_deck():
-	var sender := multiplayer.get_remote_sender_id()
-	print("📨 Richiesta deck da:", sender)
-
-	while local_deck_data == null:
-		await get_tree().process_frame  # ✅ aspetta finché è pronto
-
-	_send_deck_to_peer(local_deck_data, sender)
+#@rpc("any_peer")
+#func _rpc_request_deck():
+	#var sender := multiplayer.get_remote_sender_id()
+	#print("📨 Richiesta deck da:", sender)
+#
+	#while local_deck_data == null:
+		#await get_tree().process_frame  # ✅ aspetta finché è pronto
+#
+	#_send_deck_to_peer(local_deck_data, sender)
 
 
 
@@ -354,15 +354,15 @@ func _rpc_request_deck():
 	#else:
 		#print("📤 CLIENT → invio deck all'HOST (1)")
 		#rpc_id(1, "_receive_deck_data", deck_dict)
-func _send_deck_to_peer(deck_data: DeckData, target_peer_id: int):
-	if deck_data == null:
-		push_warning("❌ _send_deck_to_peer: deck_data è NULL, invio annullato")
-		return
-
-	var deck_dict = deck_data.to_dict()
-	print("📤 Invio deck a peer che ha ID pari a:", target_peer_id)
-	print("➡️ target path:", get_path(), " name:", name)
-	rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
+#func _send_deck_to_peer(deck_data: DeckData, target_peer_id: int):
+	#if deck_data == null:
+		#push_warning("❌ _send_deck_to_peer: deck_data è NULL, invio annullato")
+		#return
+#
+	#var deck_dict = deck_data.to_dict()
+	#print("📤 Invio deck a peer che ha ID pari a:", target_peer_id)
+	#print("➡️ target path:", get_path(), " name:", name)
+	#rpc_id(target_peer_id, "_receive_deck_data", deck_dict)
 
 
 
@@ -403,14 +403,13 @@ func _rpc_start_game():
 
 func _start_game():
 	print("🎮 START GAME su peer:", multiplayer.get_unique_id())
-	print("   local_deck:", local_deck_data != null)
-	print("   remote_deck:", remote_deck_data != null)
+
 	deck_buttons_container.visible = false
 	lobby_list_background.visible = false
 	lobby_list.visible = false
 	deck_list_background.visible = false
 	disable_buttons()
-	
+
 	var player_scene = player_field_scene.instantiate()
 	var enemy_scene = enemy_field_scene.instantiate()
 
@@ -420,15 +419,9 @@ func _start_game():
 	add_child(enemy_scene)
 
 	if multiplayer.is_server():
-		# Host gioca con local deck, nemico = remote
-		player_scene.get_node("Deck").set_deck_data(local_deck_data)
-		enemy_scene.get_node("EnemyDeck").set_deck_data(remote_deck_data)
 		player_scene.host_set_up()
 		enemy_scene.client_set_up()
 	else:
-		# Client gioca con local deck, nemico = remote
-		player_scene.get_node("Deck").set_deck_data(local_deck_data)
-		enemy_scene.get_node("EnemyDeck").set_deck_data(remote_deck_data)
 		player_scene.client_set_up()
 		enemy_scene.host_set_up()
 
@@ -490,40 +483,33 @@ func _send_ping_to_peer(peer_id: int, tag: String = ""):
 @rpc("any_peer")
 func _rpc_ping(seq: int, tag: String):
 	var sender := multiplayer.get_remote_sender_id()
-	var payload := [seq, tag]
-	var bytes := var_to_bytes(payload).size()
 
-	print("📩 PING ricevuto su:", multiplayer.get_unique_id(),
-		" da:", sender,
-		" | seq:", seq,
-		" | tag:", tag,
-		" | size:", bytes, "bytes")
+	print("📩 PING ricevuto da:", sender, " tag:", tag)
 
 	if tag == "handshake":
 		peer_handshake_done = true
+		_try_start_game_after_handshake()
 
 	rpc_id(sender, "_rpc_pong", seq, tag)
 
 @rpc("any_peer")
 func _rpc_pong(seq: int, tag: String):
 	var sender := multiplayer.get_remote_sender_id()
-	var payload := [seq, tag]
-	var bytes := var_to_bytes(payload).size()
 
-	print("✅ PONG ricevuto su:", multiplayer.get_unique_id(),
-		" da:", sender,
-		" | seq:", seq,
-		" | tag:", tag,
-		" | size:", bytes, "bytes")
+	print("✅ PONG ricevuto da:", sender, " tag:", tag)
 
 	if tag == "handshake":
 		handshake_done = true
-		_try_send_deck_after_handshake()
+		_try_start_game_after_handshake()
 
-func _try_send_deck_after_handshake():
-	if handshake_done and local_deck_data != null:
-		print("🤝 Handshake completato → invio deck al server")
-		_send_deck_to_peer(local_deck_data, MultiplayerPeer.TARGET_PEER_SERVER)
+#func _try_send_deck_after_handshake():
+	#if handshake_done and local_deck_data != null:
+		#print("🤝 Handshake completato → invio deck al server")
+		#_send_deck_to_peer(local_deck_data, MultiplayerPeer.TARGET_PEER_SERVER)
 
 
 	
+func _try_start_game_after_handshake():
+	if handshake_done and peer_handshake_done:
+		print("🤝 Handshake COMPLETO su peer:", multiplayer.get_unique_id())
+		rpc("_rpc_start_game")

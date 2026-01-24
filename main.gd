@@ -317,7 +317,7 @@ func _on_peer_connected(peer_id: int):
 		print("🎉 JOIN remoto connesso:", peer_id)
 
 		# (opzionale) ping host->client per testare anche l'altra direzione
-		_send_ping_to_peer(peer_id, "[auto host->client]")
+		_send_ping_to_peer(peer_id, "handshake")
 
 		## 1) manda deck host
 		#print("➡️ HOST manda il SUO deck al peer", peer_id)
@@ -514,6 +514,8 @@ func _rpc_pong(seq: int, tag: String):
 
 	
 func _try_start_game_after_handshake():
-	if handshake_done and peer_handshake_done:
+	if handshake_done:
 		print("🤝 Handshake COMPLETO su peer:", multiplayer.get_unique_id())
 		rpc("_rpc_start_game")
+	else:
+		print("Ancora non posso startare")
